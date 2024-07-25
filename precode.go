@@ -70,12 +70,12 @@ func getTasks(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	_, _ = w.Write(resp)
 }
-func postTasks(w http.ResponseWriter, r *http.Request) {
+func addTask(w http.ResponseWriter, r *http.Request) {
 	var task Task
 	var buf bytes.Buffer
-
+	//на будущее тут эффективнее json.Decoder использовать - Отправил по рекомендациям, и по данному вопросу разберусь.
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -87,6 +87,10 @@ func postTasks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, ok := tasks[task.ID]; ok {
+		http.Error(w, "Задача с данным id уже записана", http.StatusBadRequest)
+		return
+	}
 	tasks[task.ID] = task
 
 	w.Header().Set("Content-Type", "application/json")
@@ -96,12 +100,12 @@ func deleteTasks(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	if _, ok := tasks[id]; ok {
-		delete(tasks, id)
-	} else {
+	if _, ok := tasks[id]; !ok {
+
 		http.Error(w, "Задача не найдена", http.StatusBadRequest)
 		return
 	}
+	delete(tasks, id)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -112,7 +116,7 @@ func main() {
 
 	// здесь регистрируйте ваши обработчики
 	r.Get("/tasks", getTasks)
-	r.Post("/tasks", postTasks)
+	r.Post("/tasks", addTask)
 	r.Get("/task/{id}", getTask)
 	r.Delete("/tasks/{id}", deleteTasks)
 	if err := http.ListenAndServe(":8080", r); err != nil {
